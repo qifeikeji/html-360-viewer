@@ -64,14 +64,11 @@ Copyright (c) 2025 Ben Egan
     <!-- Page Title -->
     <title>360° Panorama & Video Viewer</title>
 
-    <!-- A-Frame -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/aframe/1.7.0/aframe.min.js"></script>
+    <!-- A-Frame (offline): place `aframe.min.js` next to this HTML -->
+    <script src="aframe.min.js"></script>
 
-    <!-- three.js (for Little Planet sphere mode) -->
-    <script src="https://unpkg.com/three@0.160.0/build/three.min.js"></script>
-
-    <!-- Material Symbols for icons -->
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" />
+    <!-- three.js (offline): place `three.min.js` next to this HTML -->
+    <script src="three.min.js"></script>
 
     <style>
         /* --- Layout & Typography --- */
@@ -436,7 +433,7 @@ Copyright (c) 2025 Ben Egan
             text-align: center;
         }
 
-        /* Material icons styles */
+        /* Material icons styles (kept for backward compatibility; offline mode uses plain text icons) */
         .material-symbols-outlined {
             font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
             font-size: 24px;
@@ -480,14 +477,12 @@ Copyright (c) 2025 Ben Egan
 
     <div id="controls">
         <div id="videoControls">
-            <button id="playPauseButton"><span class="material-symbols-outlined">pause</span></button>
+            <button id="playPauseButton" aria-label="Play/Pause">⏸</button>
             <input type="range" id="videoSlider" min="0" max="100" value="0" step="0.1" />
         </div>
         <div id="bottomButtonsContainer">
             <button id="resetButton" class="control-button">Upload</button>
-            <button id="screenshotButton" class="control-button" title="Take screenshot">
-                <span class="material-symbols-outlined">photo_camera</span>
-            </button>
+            <button id="screenshotButton" class="control-button" title="Take screenshot" aria-label="Screenshot">📷</button>
         </div>
     </div>
 
@@ -700,9 +695,7 @@ Copyright (c) 2025 Ben Egan
             },
 
             updatePlayPauseIcon: () => {
-                elements.playPauseButton.innerHTML = state.isPlaying ?
-                    '<span class="material-symbols-outlined">pause</span>' :
-                    '<span class="material-symbols-outlined">play_arrow</span>';
+                elements.playPauseButton.textContent = state.isPlaying ? '⏸' : '▶';
             },
 
             preventDefaults: (e) => {
