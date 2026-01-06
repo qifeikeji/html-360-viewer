@@ -1,0 +1,689 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Little Planet (three.js)</title>
+  <style>
+    * { box-sizing: border-box; }
+    html, body { height: 100%; }
+    body {
+      margin: 0;
+      background: #111;
+      color: #eee;
+      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji";
+      overflow: hidden;
+    }
+
+    #app {
+      position: fixed;
+      inset: 0;
+      display: grid;
+      grid-template-columns: 360px 1fr;
+      gap: 0;
+    }
+
+    #panel {
+      background: rgba(20, 20, 20, 0.92);
+      border-right: 1px solid rgba(255, 255, 255, 0.08);
+      padding: 16px 14px;
+      overflow: auto;
+    }
+
+    #viewer {
+      position: relative;
+      height: 100%;
+      width: 100%;
+    }
+
+    #dropOverlay {
+      position: absolute;
+      inset: 0;
+      display: none;
+      place-items: center;
+      background: rgba(33, 150, 243, 0.25);
+      border: 3px dashed rgba(255, 255, 255, 0.45);
+      color: #fff;
+      font-size: 18px;
+      z-index: 5;
+      pointer-events: none;
+    }
+
+    h1 {
+      font-size: 16px;
+      margin: 0 0 10px 0;
+      font-weight: 700;
+      letter-spacing: 0.2px;
+    }
+    .hint {
+      margin: 0 0 12px 0;
+      font-size: 12px;
+      color: rgba(255, 255, 255, 0.72);
+      line-height: 1.4;
+    }
+
+    .row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      margin: 10px 0;
+    }
+
+    .row label {
+      font-size: 12px;
+      color: rgba(255,255,255,0.8);
+      min-width: 110px;
+    }
+
+    input[type="range"] {
+      width: 100%;
+    }
+
+    .value {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      font-size: 12px;
+      color: rgba(255,255,255,0.9);
+      min-width: 72px;
+      text-align: right;
+    }
+
+    .btnRow {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-top: 12px;
+    }
+
+    button {
+      border: 0;
+      border-radius: 8px;
+      padding: 10px 12px;
+      cursor: pointer;
+      font-weight: 700;
+      color: #111;
+      background: #90caf9;
+      transition: transform 0.12s ease, filter 0.12s ease;
+    }
+    button:hover { transform: translateY(-1px); filter: brightness(1.05); }
+    button:active { transform: translateY(0); }
+    button.secondary { background: #ffd54f; }
+    button.danger { background: #ff8a80; }
+
+    .fileBox {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 10px;
+      margin: 12px 0 14px;
+    }
+    .fileBox input[type="file"] { display: none; }
+    .fileBox label {
+      display: inline-block;
+      background: rgba(255,255,255,0.08);
+      border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 8px;
+      padding: 10px 12px;
+      cursor: pointer;
+      font-weight: 700;
+      text-align: center;
+      color: rgba(255,255,255,0.92);
+    }
+    .fileBox label:hover { background: rgba(255,255,255,0.11); }
+    #status {
+      margin-top: 10px;
+      font-size: 12px;
+      color: rgba(255,255,255,0.7);
+      line-height: 1.4;
+      word-break: break-word;
+    }
+    .sectionTitle {
+      margin-top: 14px;
+      font-size: 12px;
+      font-weight: 800;
+      color: rgba(255,255,255,0.82);
+      letter-spacing: 0.2px;
+      text-transform: none;
+    }
+    .radioRow {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 8px;
+      margin: 10px 0 12px;
+      padding: 10px;
+      border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 8px;
+      background: rgba(255,255,255,0.04);
+    }
+    .radioRow label {
+      display: flex;
+      gap: 10px;
+      align-items: flex-start;
+      cursor: pointer;
+      user-select: none;
+      font-size: 12px;
+      color: rgba(255,255,255,0.85);
+      line-height: 1.35;
+    }
+    .radioRow input { margin-top: 2px; }
+    #previewWrap {
+      margin-top: 12px;
+      padding: 10px;
+      border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 8px;
+      background: rgba(0,0,0,0.25);
+    }
+    #previewCanvas {
+      width: 100%;
+      aspect-ratio: 1 / 1;
+      display: block;
+      background: rgba(0,0,0,0.3);
+      border-radius: 8px;
+    }
+    .tinyNote {
+      margin-top: 8px;
+      font-size: 11px;
+      color: rgba(255,255,255,0.7);
+      line-height: 1.35;
+    }
+
+    @media (max-width: 900px) {
+      #app { grid-template-columns: 1fr; grid-template-rows: auto 1fr; }
+      #panel { border-right: 0; border-bottom: 1px solid rgba(255,255,255,0.08); }
+    }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <div id="panel">
+      <h1>Little Planet（three.js 单文件）</h1>
+      <p class="hint">
+        - 支持拖拽/上传 equirectangular 360 全景图（2:1 比例最佳）<br/>
+        - 鼠标拖拽：环视；滚轮：调“地平线圆半径”<br/>
+        - 适用于 1:1 小行星图与 2:1 反向小行星图（中心圆环=赤道）
+      </p>
+
+      <div class="fileBox">
+        <input id="fileInput" type="file" accept="image/*" />
+        <label for="fileInput">选择/上传 360 全景图</label>
+      </div>
+
+      <div class="row" style="margin-top: 12px;">
+        <label for="horizon">地平线圆半径（赤道）</label>
+        <input id="horizon" type="range" min="10" max="98" step="1" value="50" />
+        <div class="value" id="horizonVal">50%</div>
+      </div>
+      <div class="row" style="margin-top: 12px;">
+        <label for="invert">反转（天地互换）</label>
+        <input id="invert" type="checkbox" />
+        <div class="value"></div>
+      </div>
+      <div id="previewWrap">
+        <canvas id="previewCanvas" width="512" height="512"></canvas>
+        <div class="tinyNote">拖动滑块让虚线圆从中心向外扩大，直到<b>刚好贴住地平线（赤道）</b>那一圈。</div>
+      </div>
+
+      <div class="btnRow">
+        <button class="secondary" id="resetBtn">重置参数</button>
+        <button id="saveBtn">保存截图</button>
+        <button class="danger" id="clearBtn">清空图片</button>
+        <button class="secondary" id="fitBtn">适配屏幕</button>
+      </div>
+
+      <div id="status">未加载图片</div>
+    </div>
+
+    <div id="viewer">
+      <div id="dropOverlay">松开鼠标以加载图片</div>
+    </div>
+  </div>
+
+  <!-- three.js (CDN) -->
+  <script src="https://unpkg.com/three@0.160.0/build/three.min.js"></script>
+
+  <script>
+    const el = (id) => document.getElementById(id);
+
+    const viewerEl = el('viewer');
+    const dropOverlay = el('dropOverlay');
+    const fileInput = el('fileInput');
+    const statusEl = el('status');
+
+    const invertEl = el('invert');
+    const horizonEl = el('horizon');
+    const horizonValEl = el('horizonVal');
+    const previewCanvas = el('previewCanvas');
+    const previewCtx = previewCanvas.getContext('2d');
+
+    const resetBtn = el('resetBtn');
+    const saveBtn = el('saveBtn');
+    const clearBtn = el('clearBtn');
+    const fitBtn = el('fitBtn');
+
+    const state = {
+      horizonPct: 50, // for sphere mode: horizon circle radius (% of half-size)
+      invert: false, // swap hemispheres (sky/ground)
+      dragging: false,
+      lastX: 0,
+      lastY: 0,
+    };
+
+    const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+    viewerEl.appendChild(renderer.domElement);
+
+    const scene = new THREE.Scene();
+    const perspCamera = new THREE.PerspectiveCamera(75, 1, 0.01, 50);
+    perspCamera.position.set(0, 0, 0);
+    const activeCamera = perspCamera;
+    // camera controls for sphere mode
+    const camRot = { yaw: 0, pitch: 0 };
+    function applySphereCameraRotation() {
+      camRot.pitch = Math.max(-Math.PI * 0.49, Math.min(Math.PI * 0.49, camRot.pitch));
+      perspCamera.rotation.set(camRot.pitch, camRot.yaw, 0, 'YXZ');
+    }
+
+    // -------- Sphere mode (tiny planet square -> inside sphere) shader --------
+    const sphereUniforms = {
+      uTex: { value: null },
+      // horizonPct controls where equator maps: radiusNormalized = horizonPct/100 in base [-1,1] space (edge=1)
+      uHorizon: { value: state.horizonPct / 100.0 },
+      // texture aspect = width/height; used to correctly sample rectangular "reverse tiny planet" images
+      uTexAspect: { value: 1.0 },
+      // in sphere mode, invert swaps hemispheres (sky/ground) while keeping equator radius fixed
+      uInvert: { value: state.invert ? 1.0 : 0.0 },
+    };
+
+    const sphereMaterial = new THREE.ShaderMaterial({
+      uniforms: sphereUniforms,
+      side: THREE.BackSide, // camera inside sphere
+      vertexShader: `
+        varying vec3 vDir;
+        void main() {
+          // direction from origin
+          vDir = normalize(position);
+          gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+        }
+      `,
+      fragmentShader: `
+        precision highp float;
+        uniform sampler2D uTex;
+        uniform float uHorizon;
+        uniform float uTexAspect;
+        uniform float uInvert;
+        varying vec3 vDir;
+        const float PI = 3.1415926535897932384626433832795;
+
+        void main() {
+          vec3 d = normalize(vDir);
+
+          // Spherical coords: lon [-PI, PI], lat [-PI/2, PI/2]
+          float lon = atan(d.x, d.z);
+          float lat = asin(clamp(d.y, -1.0, 1.0));
+
+          // Swap hemispheres (sky/ground) but keep equator circle fixed
+          if (uInvert > 0.5) {
+            lat = -lat;
+          }
+
+          // UV mapping rule for square "tiny planet" images (as you described):
+          // - outer edge (radius=1) => North pole (lat= +PI/2)
+          // - center (radius=0)     => South pole (lat= -PI/2)
+          // - dashed circle         => Equator (lat= 0), its radius is uHorizon
+          //
+          // We use a piecewise-linear radius mapping so lat=0 hits the chosen horizon radius.
+          float re = clamp(uHorizon, 0.01, 0.99);
+          float r;
+          if (lat >= 0.0) {
+            // lat: [0 .. +PI/2] => r: [re .. 1]
+            r = re + (lat / (PI * 0.5)) * (1.0 - re);
+          } else {
+            // lat: [-PI/2 .. 0] => r: [0 .. re]
+            r = ((lat + PI * 0.5) / (PI * 0.5)) * re;
+          }
+
+          vec2 base = vec2(cos(lon), sin(lon)) * r;
+
+          // Map base square [-1,1] into UV, aspect-correct so the circle is inscribed in min(imageWidth, imageHeight)
+          float sx = 1.0;
+          float sy = 1.0;
+          if (uTexAspect > 1.0) {
+            // wide image: compress X
+            sx = 1.0 / uTexAspect;
+          } else {
+            // tall image: compress Y
+            sy = uTexAspect;
+          }
+          vec2 uv = vec2(0.5 + base.x * 0.5 * sx, 0.5 + base.y * 0.5 * sy);
+          if (uv.x < 0.0 || uv.x > 1.0 || uv.y < 0.0 || uv.y > 1.0) {
+            gl_FragColor = vec4(0.0, 0.0, 0.0, 1.0);
+            return;
+          }
+
+          vec3 col = texture2D(uTex, uv).rgb;
+          gl_FragColor = vec4(col, 1.0);
+        }
+      `,
+    });
+
+    const sphere = new THREE.Mesh(new THREE.SphereGeometry(10, 96, 64), sphereMaterial);
+
+    // Scene contents (sphere only)
+    scene.add(sphere);
+    applySphereCameraRotation();
+
+    function setStatus(msg) {
+      statusEl.textContent = msg;
+    }
+
+    function updateUI() {
+      invertEl.checked = state.invert;
+      horizonEl.value = String(state.horizonPct);
+      horizonValEl.textContent = `${Math.round(state.horizonPct)}%`;
+    }
+
+    function updateUniforms() {
+      sphereUniforms.uHorizon.value = state.horizonPct / 100.0;
+      sphereUniforms.uInvert.value = state.invert ? 1.0 : 0.0;
+    }
+
+    function resize() {
+      const w = viewerEl.clientWidth;
+      const h = viewerEl.clientHeight;
+      renderer.setSize(w, h, false);
+      perspCamera.aspect = w / Math.max(1, h);
+      perspCamera.updateProjectionMatrix();
+      renderOnce();
+    }
+
+    let renderPending = false;
+    function renderOnce() {
+      if (renderPending) return;
+      renderPending = true;
+      requestAnimationFrame(() => {
+        renderer.render(scene, activeCamera);
+        renderPending = false;
+      });
+    }
+
+    let lastLoadedImage = null; // THREE.Texture.image
+    let lastTexAspect = 1.0;
+    function drawPreview() {
+      if (!previewCtx) return;
+      const w = previewCanvas.width;
+      const h = previewCanvas.height;
+      previewCtx.clearRect(0, 0, w, h);
+      previewCtx.fillStyle = 'rgba(0,0,0,0.35)';
+      previewCtx.fillRect(0, 0, w, h);
+
+      if (lastLoadedImage) {
+        // draw centered, contain (preserve aspect, show full image)
+        const iw = lastLoadedImage.width;
+        const ih = lastLoadedImage.height;
+        const s = Math.min(w / iw, h / ih);
+        const dw = iw * s;
+        const dh = ih * s;
+        const dx = (w - dw) / 2;
+        const dy = (h - dh) / 2;
+        previewCtx.drawImage(lastLoadedImage, dx, dy, dw, dh);
+
+        // draw horizon circle in the image's inscribed square (min dimension)
+        const minDim = Math.min(dw, dh);
+        const cx = dx + dw / 2;
+        const cy = dy + dh / 2;
+        const rr = (minDim / 2) * (state.horizonPct / 100.0);
+
+        previewCtx.beginPath();
+        previewCtx.arc(cx, cy, rr, 0, Math.PI * 2);
+        previewCtx.strokeStyle = 'rgba(255, 235, 59, 0.95)';
+        previewCtx.lineWidth = 3;
+        previewCtx.stroke();
+        previewCtx.setLineDash([6, 6]);
+        previewCtx.strokeStyle = 'rgba(0,0,0,0.7)';
+        previewCtx.lineWidth = 2;
+        previewCtx.stroke();
+        previewCtx.setLineDash([]);
+        return;
+      } else {
+        previewCtx.fillStyle = 'rgba(255,255,255,0.75)';
+        previewCtx.font = '16px sans-serif';
+        previewCtx.textAlign = 'center';
+        previewCtx.fillText('未加载图片', w/2, h/2);
+      }
+    }
+
+    function setTextureFromDataUrl(dataUrl, name = 'image') {
+      const loader = new THREE.TextureLoader();
+      setStatus(`加载中：${name} ...`);
+      loader.load(
+        dataUrl,
+        (tex) => {
+          tex.colorSpace = THREE.SRGBColorSpace;
+          tex.minFilter = THREE.LinearMipmapLinearFilter;
+          tex.magFilter = THREE.LinearFilter;
+          tex.wrapS = THREE.RepeatWrapping;
+          tex.wrapT = THREE.ClampToEdgeWrapping;
+          tex.anisotropy = Math.min(8, renderer.capabilities.getMaxAnisotropy());
+          sphereUniforms.uTex.value = tex;
+          lastLoadedImage = tex.image || null;
+          if (tex.image && tex.image.width && tex.image.height) {
+            lastTexAspect = tex.image.width / tex.image.height;
+            sphereUniforms.uTexAspect.value = lastTexAspect;
+          } else {
+            lastTexAspect = 1.0;
+            sphereUniforms.uTexAspect.value = 1.0;
+          }
+          // Heuristic: equirectangular panoramas are typically ~2:1; square images are often already "tiny planet" renders.
+          const iw = tex.image && tex.image.width ? tex.image.width : 0;
+          const ih = tex.image && tex.image.height ? tex.image.height : 0;
+          if (iw && ih) {
+            const ar = iw / ih;
+            if (ar < 1.25) {
+              setStatus(`已加载：${name}（${iw}x${ih}）。类型：更像 1:1 小行星图。用圆圈校准赤道。`);
+            } else if (ar > 1.6) {
+              // Could be equirectangular pano OR "reverse tiny planet" in wide canvas.
+              setStatus(`已加载：${name}（${iw}x${ih}）。类型：宽图（≈2:1）。已按“反向小行星/长方形贴图”方式贴球；赤道仍用圆圈校准。`);
+            } else {
+              setStatus(`已加载：${name}（${iw}x${ih}）`);
+            }
+          } else {
+            setStatus(`已加载：${name}`);
+          }
+          renderOnce();
+          drawPreview();
+        },
+        undefined,
+        (err) => {
+          console.error(err);
+          setStatus(`加载失败：${name}`);
+          alert('图片加载失败（可能是格式不支持或文件损坏）。');
+        }
+      );
+    }
+
+    function clearTexture() {
+      // sphereUniforms.uTex owns the texture reference for rendering; dispose it here
+      if (sphereUniforms.uTex.value) {
+        sphereUniforms.uTex.value.dispose();
+      }
+      sphereUniforms.uTex.value = null;
+      sphereUniforms.uTexAspect.value = 1.0;
+      lastLoadedImage = null;
+      lastTexAspect = 1.0;
+      setStatus('未加载图片');
+      renderOnce();
+      drawPreview();
+    }
+
+    // Controls
+    invertEl.addEventListener('change', () => {
+      state.invert = !!invertEl.checked;
+      updateUniforms();
+      updateUI();
+      renderOnce();
+      drawPreview();
+    });
+
+    horizonEl.addEventListener('input', (e) => {
+      state.horizonPct = parseFloat(e.target.value);
+      updateUniforms();
+      updateUI();
+      renderOnce();
+      drawPreview();
+    });
+
+    resetBtn.addEventListener('click', () => {
+      state.invert = false;
+      state.horizonPct = 50;
+      updateUniforms();
+      updateUI();
+      renderOnce();
+      drawPreview();
+    });
+
+    saveBtn.addEventListener('click', () => {
+      if (!uniforms.uTex.value) {
+        alert('请先加载一张图片。');
+        return;
+      }
+      const link = document.createElement('a');
+      link.download = `little_planet_${Date.now()}.png`;
+      link.href = renderer.domElement.toDataURL('image/png');
+      link.click();
+    });
+
+    clearBtn.addEventListener('click', () => {
+      clearTexture();
+    });
+
+    fitBtn.addEventListener('click', () => {
+      // For this shader-based viewer, "fit" just forces a resize and rerender.
+      resize();
+    });
+
+    // Pointer drag: adjust lon/lat
+    function onPointerDown(e) {
+      state.dragging = true;
+      state.lastX = e.clientX;
+      state.lastY = e.clientY;
+      viewerEl.setPointerCapture && viewerEl.setPointerCapture(e.pointerId);
+    }
+    function onPointerMove(e) {
+      if (!state.dragging) return;
+      const dx = e.clientX - state.lastX;
+      const dy = e.clientY - state.lastY;
+      state.lastX = e.clientX;
+      state.lastY = e.clientY;
+
+      // sphere look-around
+      camRot.yaw -= dx * 0.003;
+      camRot.pitch -= dy * 0.003;
+      applySphereCameraRotation();
+      renderOnce();
+    }
+    function onPointerUp() {
+      state.dragging = false;
+    }
+
+    viewerEl.addEventListener('pointerdown', onPointerDown);
+    viewerEl.addEventListener('pointermove', onPointerMove);
+    viewerEl.addEventListener('pointerup', onPointerUp);
+    viewerEl.addEventListener('pointercancel', onPointerUp);
+    viewerEl.addEventListener('pointerleave', onPointerUp);
+
+    // Wheel zoom
+    viewerEl.addEventListener('wheel', (e) => {
+      e.preventDefault();
+      const delta = Math.sign(e.deltaY);
+      // wheel adjusts horizon radius for quick calibration
+      state.horizonPct = Math.max(10, Math.min(98, state.horizonPct * (delta > 0 ? 0.95 : 1.05)));
+      horizonEl.value = String(state.horizonPct);
+      updateUniforms();
+      updateUI();
+      renderOnce();
+      drawPreview();
+    }, { passive: false });
+
+    // Drag & drop
+    function preventDefaults(e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+    ['dragenter','dragover','dragleave','drop'].forEach((evt) => {
+      document.addEventListener(evt, preventDefaults, false);
+    });
+    document.addEventListener('dragenter', (e) => {
+      if (e.dataTransfer && e.dataTransfer.types && e.dataTransfer.types.includes('Files')) {
+        dropOverlay.style.display = 'grid';
+      }
+    });
+    document.addEventListener('dragleave', (e) => {
+      if (e.clientX <= 0 || e.clientX >= window.innerWidth || e.clientY <= 0 || e.clientY >= window.innerHeight) {
+        dropOverlay.style.display = 'none';
+      }
+    });
+    document.addEventListener('drop', (e) => {
+      dropOverlay.style.display = 'none';
+      const f = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+      if (!f) return;
+      if (!/^image\//.test(f.type)) {
+        alert('请拖拽图片文件。');
+        return;
+      }
+      const reader = new FileReader();
+      reader.onload = (ev) => setTextureFromDataUrl(ev.target.result, f.name);
+      reader.readAsDataURL(f);
+    });
+
+    // File input
+    fileInput.addEventListener('change', (e) => {
+      const f = e.target.files && e.target.files[0];
+      if (!f) return;
+      const reader = new FileReader();
+      reader.onload = (ev) => setTextureFromDataUrl(ev.target.result, f.name);
+      reader.readAsDataURL(f);
+    });
+
+    // URL param ?url=...
+    (function initFromUrl() {
+      const p = new URLSearchParams(window.location.search);
+      const url = p.get('url') || p.get('src');
+      if (!url) return;
+      setStatus(`从 URL 加载：${url}`);
+      const loader = new THREE.TextureLoader();
+      loader.setCrossOrigin('anonymous');
+      loader.load(
+        url,
+        (tex) => {
+          tex.colorSpace = THREE.SRGBColorSpace;
+          tex.minFilter = THREE.LinearMipmapLinearFilter;
+          tex.magFilter = THREE.LinearFilter;
+          tex.wrapS = THREE.RepeatWrapping;
+          tex.wrapT = THREE.ClampToEdgeWrapping;
+          tex.anisotropy = Math.min(8, renderer.capabilities.getMaxAnisotropy());
+          uniforms.uTex.value = tex;
+          sphereUniforms.uTex.value = tex;
+          lastLoadedImage = tex.image || null;
+          setStatus(`已从 URL 加载：${url}`);
+          renderOnce();
+          drawPreview();
+        },
+        undefined,
+        (err) => {
+          console.error(err);
+          setStatus(`URL 加载失败：${url}`);
+          alert('URL 图片加载失败（可能跨域/CORS 限制或链接不可访问）。');
+        }
+      );
+    })();
+
+    // Init
+    updateUI();
+    updateUniforms();
+    resize();
+    window.addEventListener('resize', resize);
+    renderOnce();
+  </script>
+</body>
+</html>
+
+

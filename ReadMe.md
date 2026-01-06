@@ -2,6 +2,9 @@
 
 A lightweight, browser-based viewer for 360-degree images and videos. No additional setup required, just open the HTML file in any modern browser.
 
+添加支持了 litte planet的支持
+
+
 
 <div align="left">
  <img src="examples/example_image.png" width="710px">
@@ -14,7 +17,6 @@ Supports:
 * 360° panoramic **images**, most formats supported by browsers, like [JPEG](https://en.wikipedia.org/wiki/JPEG) (includes '.jpg'), [PNG](https://en.wikipedia.org/wiki/PNG), [WebP](https://en.wikipedia.org/wiki/WebP), etc.
 * 360° **videos** in [.mp4](https://en.wikipedia.org/wiki/MP4_file_format) and [.webm](https://en.wikipedia.org/wiki/WebM) format. Works as a 360 video player.
 * Monoscopic 360 images and stereo images in **top-bottom** and **left-right** layouts
-
 
 ## 🧪 Compatibility
 
@@ -45,7 +47,6 @@ Works on [all VR headsets supported by A-Frame](https://aframe.io/docs/1.7.0/int
 * **Screenshot** functionality (UI hidden in capture)
 * **Video controls**: play/pause, timeline slider
 
-
 ## 📦 Getting Started
 
 **Option 1 – Local Use**
@@ -65,31 +66,29 @@ Works on [all VR headsets supported by A-Frame](https://aframe.io/docs/1.7.0/int
 2. Rename the file to something like `viewer360.html` (make sure it ends in `.html`).
 3. Open it in your browser.
 
-
 ## 🕹️ Controls
 
-| Action             | How to Use                                   |
-| ------------------ | -------------------------------------------- |
-| Pan View           | Left-click + drag or touch + drag            |
-| Zoom               | Mouse wheel or pinch gesture                 |
-| Fullscreen         | Browser fullscreen and VR headset control    |
-| Stereo Toggle      | Bottom-left "Stereo" button                  |
-| Screenshot         | Camera icon at bottom center                 |
-| Upload/Reset Media | "Upload" button below controls               |
-| Play/Pause Video   | Play/pause button on video controls          |
-| Seek in Video      | Use the timeline slider                      |
-
+| Action             | How to Use                                |
+| ------------------ | ----------------------------------------- |
+| Pan View           | Left-click + drag or touch + drag         |
+| Zoom               | Mouse wheel or pinch gesture              |
+| Fullscreen         | Browser fullscreen and VR headset control |
+| Stereo Toggle      | Bottom-left "Stereo" button               |
+| Screenshot         | Camera icon at bottom center              |
+| Upload/Reset Media | "Upload" button below controls            |
+| Play/Pause Video   | Play/pause button on video controls       |
+| Seek in Video      | Use the timeline slider                   |
 
 ## 🤝 Contributing
 
 Contributions are welcome! Please feel free to submit a Pull Request.
-
 
 ## 🔬 Citation
 
 If you use this library in your research or project, please refer to the included [CITATION.cff](CITATION.cff) file or cite it as follows:
 
 ### BibTeX
+
 ```bibtex
 @misc{egan2025html360viewer,
   title={Browser-Based Viewer for 360 Images and Videos},
@@ -101,6 +100,7 @@ If you use this library in your research or project, please refer to the include
 ```
 
 ### APA Style
+
 ```
 Egan, B. (2025). Browser-Based Viewer for 360 Images and Videos [Computer software]. GitHub. https://github.com/ProGamerGov/html-360-viewer
 ```

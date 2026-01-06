@@ -67,6 +67,9 @@ Copyright (c) 2025 Ben Egan
     <!-- A-Frame -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/aframe/1.7.0/aframe.min.js"></script>
 
+    <!-- three.js (for Little Planet sphere mode) -->
+    <script src="https://unpkg.com/three@0.160.0/build/three.min.js"></script>
+
     <!-- Material Symbols for icons -->
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" />
 
@@ -117,6 +120,77 @@ Copyright (c) 2025 Ben Egan
         #aframeContainer {
             position: absolute;
             inset: 0;
+        }
+
+        /* --- three.js container (Little Planet) --- */
+        #threeContainer {
+            position: absolute;
+            inset: 0;
+            display: none;
+            z-index: 5;
+        }
+        #threeContainer canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+
+        /* --- Little Planet right panel --- */
+        #littlePlanetPanel {
+            position: absolute;
+            top: 0;
+            right: 0;
+            height: 100%;
+            width: 360px;
+            max-width: min(360px, 92vw);
+            background: rgba(20, 20, 20, 0.92);
+            border-left: 1px solid rgba(255,255,255,0.12);
+            z-index: 60;
+            display: none;
+            padding: 14px 14px 18px;
+            overflow: auto;
+            color: rgba(255,255,255,0.92);
+            backdrop-filter: blur(3px);
+        }
+        #littlePlanetPanel h3 {
+            margin: 0 0 10px 0;
+            font-size: 14px;
+            letter-spacing: 0.2px;
+        }
+        .lp-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin: 10px 0;
+        }
+        .lp-row label {
+            min-width: 130px;
+            font-size: 12px;
+            color: rgba(255,255,255,0.85);
+        }
+        .lp-row input[type="range"] {
+            flex: 1;
+        }
+        .lp-value {
+            min-width: 52px;
+            text-align: right;
+            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+            font-size: 12px;
+            color: rgba(255,255,255,0.85);
+        }
+        #lpPreviewCanvas {
+            width: 100%;
+            aspect-ratio: 1 / 1;
+            border-radius: 8px;
+            display: block;
+            background: rgba(0,0,0,0.25);
+            border: 1px solid rgba(255,255,255,0.12);
+        }
+        .lp-note {
+            margin-top: 8px;
+            font-size: 11px;
+            line-height: 1.35;
+            color: rgba(255,255,255,0.7);
         }
 
         /* --- Global controls wrapper --- */
@@ -182,6 +256,7 @@ Copyright (c) 2025 Ben Egan
         /* Slider styling */
         #videoSlider {
             -webkit-appearance: none;
+            appearance: none;
             width: 320px;
             height: 6px;
             background: #ddd;
@@ -242,23 +317,31 @@ Copyright (c) 2025 Ben Egan
             display: none;
         }
 
-        /* --- Stereo Button --- */
-        #stereoButton {
+        /* --- View mode buttons (vertical) --- */
+        #viewModeButtons {
             position: absolute;
             bottom: 20px;
             left: 20px;
             z-index: 20;
-            padding: 6px 10px;
+            display: none;
+            flex-direction: column;
+            gap: 8px;
+            user-select: none;
+        }
+        .view-mode-button {
+            padding: 8px 14px;
             background: rgba(0,0,0,0.6);
             color: #fff;
             border: none;
-            border-radius: 4px;
+            border-radius: 6px;
             font-size: 13px;
+            min-width: 180px;
+            text-align: center;
+            white-space: nowrap;
             cursor: pointer;
-            display: none;
         }
-        #stereoButton:hover { background: rgba(0,0,0,0.8); }
-        #stereoButton.active { background: rgba(66,133,244,0.8); }
+        .view-mode-button:hover { background: rgba(0,0,0,0.8); }
+        .view-mode-button.active { background: rgba(66,133,244,0.85); }
 
         /* --- Upload Button --- */
         #resetButton {
@@ -364,8 +447,8 @@ Copyright (c) 2025 Ben Egan
             /* lift control bar */
             #controls { bottom: 80px !important; }
 
-            /* lift the Stereo toggle to the same line */
-            #stereoButton { bottom: 80px !important; }
+            /* lift view mode buttons */
+            #viewModeButtons { bottom: 80px !important; }
 
             /* pull A-Frame’s VR / fullscreen button up and over everything */
             .a-enter-vr-button {
@@ -393,6 +476,7 @@ Copyright (c) 2025 Ben Egan
     </div>
 
     <div id="aframeContainer"></div>
+    <div id="threeContainer"></div>
 
     <div id="controls">
         <div id="videoControls">
@@ -407,7 +491,29 @@ Copyright (c) 2025 Ben Egan
         </div>
     </div>
 
-    <button id="stereoButton">Stereo</button>
+    <div id="viewModeButtons" aria-label="View mode buttons">
+        <button id="modeMonoButton" class="view-mode-button active" title="Monoscopic panorama">Mono / 单眼</button>
+        <button id="modeTbButton" class="view-mode-button" title="Top/Bottom stereo panorama">Top/Bottom / 上下</button>
+        <button id="modeLrButton" class="view-mode-button" title="Left/Right stereo panorama">Left/Right / 左右</button>
+        <button id="modeLittlePlanetButton" class="view-mode-button" title="Little Planet mode (image)">Little Planet / 小行星</button>
+    </div>
+
+    <!-- Little Planet panel (three.js sphere mode) -->
+    <div id="littlePlanetPanel" aria-label="Little Planet controls">
+        <h3>Little Planet / 小行星（球体贴图校准）</h3>
+        <div class="lp-row">
+            <label for="lpHorizon">地平线圆半径（赤道）</label>
+            <input id="lpHorizon" type="range" min="10" max="98" step="1" value="50" />
+            <div class="lp-value" id="lpHorizonVal">50%</div>
+        </div>
+        <div class="lp-row">
+            <label for="lpInvert">反转（天地互换）</label>
+            <input id="lpInvert" type="checkbox" />
+            <div class="lp-value"></div>
+        </div>
+        <canvas id="lpPreviewCanvas" width="512" height="512"></canvas>
+        <div class="lp-note">拖动滑块让虚线圆从中心向外扩大，直到<b>刚好贴住地平线（赤道）</b>那一圈。</div>
+    </div>
 
     <div id="loadingIndicator">
         <div class="spinner"></div>
@@ -461,6 +567,56 @@ Copyright (c) 2025 Ben Egan
         };
     }
 
+    // --- Little Planet shader (images only) ---
+    // Inverse stereographic projection from plane -> sphere, sampling equirectangular texture
+    // Inspired by common "tiny planet" mapping: lat = PI/2 - 2*atan(r), lon = atan(y,x)
+    if (window.AFRAME && (!AFRAME.shaders || !AFRAME.shaders['little-planet'])) {
+        AFRAME.registerShader('little-planet', {
+            schema: {
+                src: { type: 'map', is: 'uniform' },
+                yawOffset: { type: 'number', is: 'uniform', default: -1.57079632679 } // -90deg to match panorama rotation
+            },
+            vertexShader: `
+                varying vec2 vUV;
+                void main() {
+                    vUV = uv;
+                    gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+                }
+            `,
+            fragmentShader: `
+                uniform sampler2D src;
+                uniform float yawOffset;
+                varying vec2 vUV;
+
+                const float PI = 3.1415926535897932384626433832795;
+
+                void main() {
+                    // Map UV to plane coords in [-1, 1]
+                    vec2 p = vUV * 2.0 - 1.0;
+                    float r = length(p);
+
+                    // Optional circular crop (black outside)
+                    if (r > 1.0) {
+                        gl_FragColor = vec4(0.0, 0.0, 0.0, 1.0);
+                        return;
+                    }
+
+                    float lon = atan(p.y, p.x) + yawOffset;
+                    float lat = (PI * 0.5) - 2.0 * atan(r);
+
+                    float u = lon / (2.0 * PI) + 0.5;
+                    float v = lat / PI + 0.5;
+
+                    // Wrap horizontally
+                    u = fract(u);
+                    v = clamp(v, 0.0, 1.0);
+
+                    gl_FragColor = texture2D(src, vec2(u, v));
+                }
+            `
+        });
+    }
+
     document.addEventListener('DOMContentLoaded', () => {
         /* ------------------ DOM references ------------------ */
         const elements = {
@@ -468,9 +624,19 @@ Copyright (c) 2025 Ben Egan
             fileInput: document.getElementById('fileInput'),
             selectButton: document.getElementById('selectButton'),
             aframeContainer: document.getElementById('aframeContainer'),
+            threeContainer: document.getElementById('threeContainer'),
             controls: document.getElementById('controls'),
             resetButton: document.getElementById('resetButton'),
-            stereoButton: document.getElementById('stereoButton'),
+            viewModeButtons: document.getElementById('viewModeButtons'),
+            modeMonoButton: document.getElementById('modeMonoButton'),
+            modeTbButton: document.getElementById('modeTbButton'),
+            modeLrButton: document.getElementById('modeLrButton'),
+            modeLittlePlanetButton: document.getElementById('modeLittlePlanetButton'),
+            littlePlanetPanel: document.getElementById('littlePlanetPanel'),
+            lpHorizon: document.getElementById('lpHorizon'),
+            lpHorizonVal: document.getElementById('lpHorizonVal'),
+            lpInvert: document.getElementById('lpInvert'),
+            lpPreviewCanvas: document.getElementById('lpPreviewCanvas'),
             videoControls: document.getElementById('videoControls'),
             playPauseButton: document.getElementById('playPauseButton'),
             videoSlider: document.getElementById('videoSlider'),
@@ -492,6 +658,27 @@ Copyright (c) 2025 Ben Egan
             currentMedia: null,
             isMediaImage: false,
             stereoMode: 0,
+            // 0: Mono panorama, 1: Top/Bottom panorama, 2: Left/Right panorama, 3: Little Planet (mono)
+            displayModeIndex: 0,
+            three: {
+                renderer: null,
+                scene: null,
+                camera: null,
+                sphere: null,
+                uniforms: null,
+                texture: null,
+                texImage: null,
+                texAspect: 1,
+                horizonPct: 50,
+                invert: false,
+                camYaw: 0,
+                camPitch: 0,
+                isDragging: false,
+                lastX: 0,
+                lastY: 0,
+                renderPending: false,
+                onResize: null
+            },
             isDraggingFile: false
         };
 
@@ -508,6 +695,8 @@ Copyright (c) 2025 Ben Egan
                 elements.zoomInfo.textContent = `Zoom: ${Math.round(state.currentFov)}°`;
                 elements.zoomInfo.style.background = 'rgba(66,133,244,0.7)';
                 setTimeout(() => elements.zoomInfo.style.background = 'rgba(0,0,0,0.55)', 300);
+                // Little Planet uses a full-screen plane: keep it fitted when FOV changes
+                helpers.updateLittlePlanetScale();
             },
 
             updatePlayPauseIcon: () => {
@@ -521,12 +710,150 @@ Copyright (c) 2025 Ben Egan
                 e.stopPropagation();
             },
 
-            updateStereoButton: () => {
-                if (state.stereoMode > 0) {
-                    elements.stereoButton.classList.add('active');
+            setDisplayModeIndex: (idx) => {
+                state.displayModeIndex = ((idx % 4) + 4) % 4;
+                // Keep stereoMode in sync (Little Planet is always mono for now)
+                state.stereoMode = state.displayModeIndex === 3 ? 0 : state.displayModeIndex;
+                helpers.updateViewModeButtons();
+            },
+
+            updateViewModeButtons: () => {
+                const btns = [
+                    elements.modeMonoButton,
+                    elements.modeTbButton,
+                    elements.modeLrButton,
+                    elements.modeLittlePlanetButton
+                ];
+                btns.forEach((btn, i) => {
+                    if (!btn) return;
+                    if (i === state.displayModeIndex) btn.classList.add('active');
+                    else btn.classList.remove('active');
+                });
+            },
+
+            showLittlePlanetUI: (show) => {
+                elements.threeContainer.style.display = show ? 'block' : 'none';
+                elements.littlePlanetPanel.style.display = show ? 'block' : 'none';
+            },
+
+            updateLittlePlanetPanelValues: () => {
+                elements.lpHorizon.value = String(state.three.horizonPct);
+                elements.lpHorizonVal.textContent = `${Math.round(state.three.horizonPct)}%`;
+                elements.lpInvert.checked = !!state.three.invert;
+            },
+
+            drawLittlePlanetPreview: () => {
+                const canvas = elements.lpPreviewCanvas;
+                const ctx = canvas.getContext('2d');
+                if (!ctx) return;
+                const w = canvas.width;
+                const h = canvas.height;
+                ctx.clearRect(0, 0, w, h);
+                ctx.fillStyle = 'rgba(0,0,0,0.35)';
+                ctx.fillRect(0, 0, w, h);
+
+                const img = state.three.texImage;
+                if (img) {
+                    const iw = img.width || img.naturalWidth || 0;
+                    const ih = img.height || img.naturalHeight || 0;
+                    const s = Math.min(w / Math.max(1, iw), h / Math.max(1, ih));
+                    const dw = iw * s;
+                    const dh = ih * s;
+                    const dx = (w - dw) / 2;
+                    const dy = (h - dh) / 2;
+                    ctx.drawImage(img, dx, dy, dw, dh);
+
+                    const minDim = Math.min(dw, dh);
+                    const cx = dx + dw / 2;
+                    const cy = dy + dh / 2;
+                    const rr = (minDim / 2) * (state.three.horizonPct / 100.0);
+
+                    ctx.beginPath();
+                    ctx.arc(cx, cy, rr, 0, Math.PI * 2);
+                    ctx.strokeStyle = 'rgba(255, 235, 59, 0.95)';
+                    ctx.lineWidth = 3;
+                    ctx.stroke();
+                    ctx.setLineDash([6, 6]);
+                    ctx.strokeStyle = 'rgba(0,0,0,0.7)';
+                    ctx.lineWidth = 2;
+                    ctx.stroke();
+                    ctx.setLineDash([]);
                 } else {
-                    elements.stereoButton.classList.remove('active');
+                    ctx.fillStyle = 'rgba(255,255,255,0.75)';
+                    ctx.font = '16px sans-serif';
+                    ctx.textAlign = 'center';
+                    ctx.fillText('未加载图片', w / 2, h / 2);
                 }
+            },
+
+            threeRenderOnce: () => {
+                const t = state.three;
+                if (!t.renderer || !t.scene || !t.camera) return;
+                if (t.renderPending) return;
+                t.renderPending = true;
+                requestAnimationFrame(() => {
+                    t.renderer.render(t.scene, t.camera);
+                    t.renderPending = false;
+                });
+            },
+
+            disposeThree: () => {
+                const t = state.three;
+
+                if (t.onResize) {
+                    window.removeEventListener('resize', t.onResize);
+                    t.onResize = null;
+                }
+
+                if (t.texture) {
+                    try { t.texture.dispose(); } catch (_) {}
+                    t.texture = null;
+                }
+
+                if (t.sphere) {
+                    try {
+                        if (t.sphere.geometry) t.sphere.geometry.dispose();
+                        if (t.sphere.material) t.sphere.material.dispose();
+                    } catch (_) {}
+                    t.sphere = null;
+                }
+
+                if (t.renderer) {
+                    try { t.renderer.dispose(); } catch (_) {}
+                    if (t.renderer.domElement && t.renderer.domElement.parentElement) {
+                        t.renderer.domElement.parentElement.removeChild(t.renderer.domElement);
+                    }
+                    t.renderer = null;
+                }
+
+                t.scene = null;
+                t.camera = null;
+                t.uniforms = null;
+                t.texImage = null;
+                t.texAspect = 1;
+                t.camYaw = 0;
+                t.camPitch = 0;
+                t.isDragging = false;
+                t.renderPending = false;
+
+                helpers.showLittlePlanetUI(false);
+            },
+
+            updateLittlePlanetScale: () => {
+                if (state.displayModeIndex !== 3) return;
+                const plane = document.querySelector('#littlePlanetPlane');
+                if (!plane) return;
+
+                const z = 1; // distance from camera (plane will be at z = -1)
+                const fovRad = (state.currentFov * Math.PI) / 180;
+                const halfH = Math.tan(fovRad / 2) * z;
+                const aspect = window.innerWidth / Math.max(1, window.innerHeight);
+                const height = halfH * 2;
+                const width = height * aspect;
+
+                // A-Frame a-plane supports width/height attributes
+                plane.setAttribute('width', width);
+                plane.setAttribute('height', height);
             },
 
             updateSlider: () => {
@@ -551,16 +878,15 @@ Copyright (c) 2025 Ben Egan
                 state.currentFov = 80;
                 elements.zoomInfo.textContent = 'Zoom: 80°';
                 elements.videoControls.style.display = 'none';
-                elements.stereoButton.style.display = 'none';
-                state.stereoMode = 0;
-                helpers.updateStereoButton();
+                elements.viewModeButtons.style.display = 'none';
+                helpers.setDisplayModeIndex(0);
 
                 const reader = new FileReader();
                 reader.onload = (e) => {
                     const url = e.target.result;
                     state.currentMedia = url;
                     state.isMediaImage = file.type.startsWith('image/');
-                    state.isMediaImage ? mediaHandlers.createImagePanorama(url) : mediaHandlers.createVideoPanorama(url);
+                    state.isMediaImage ? mediaHandlers.createImageView(url) : mediaHandlers.createVideoPanorama(url);
                 };
                 reader.readAsDataURL(file);
             },
@@ -613,7 +939,7 @@ Copyright (c) 2025 Ben Egan
                     sky.setAttribute('geometry', 'segmentsHeight: 64; segmentsWidth: 128');
 
                     const camera = document.createElement('a-entity');
-                    camera.setAttribute('camera', 'fov: 80');
+                    camera.setAttribute('camera', `fov: ${state.currentFov}`);
                     camera.setAttribute('look-controls', 'reverseMouseDrag: true');
                     camera.setAttribute('wasd-controls', 'enabled: false');
                     camera.setAttribute('position', '0 1.6 0');
@@ -632,10 +958,213 @@ Copyright (c) 2025 Ben Egan
                     elements.dropArea.classList.add('hidden');
                     elements.controls.style.display = 'flex';
                     elements.zoomInfo.style.display = 'block';
-                    elements.stereoButton.style.display = 'block';
+                    elements.viewModeButtons.style.display = 'flex';
+                    helpers.updateViewModeButtons();
                     elements.resetButton.style.display = 'block';
                     elements.screenshotButton.style.display = 'block';
                 });
+            },
+
+            createLittlePlanetThreeSphere: (src) => {
+                helpers.showLoading(true);
+
+                // Always mono for this view (crop if the original is stereo)
+                const savedStereo = state.stereoMode;
+                state.stereoMode = 0;
+
+                mediaHandlers.processStereoImage(src, (processedSrc) => {
+                    state.stereoMode = savedStereo;
+
+                    // Clean up A-Frame and any previous three instance
+                    interfaceHandlers.cleanupScene();
+                    helpers.disposeThree();
+
+                    if (!window.THREE) {
+                        helpers.showLoading(false);
+                        alert('three.js not loaded.');
+                        return;
+                    }
+
+                    const t = state.three;
+                    helpers.showLittlePlanetUI(true);
+                    helpers.updateLittlePlanetPanelValues();
+
+                    t.renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
+                    t.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+                    elements.threeContainer.appendChild(t.renderer.domElement);
+
+                    t.scene = new THREE.Scene();
+                    t.camera = new THREE.PerspectiveCamera(75, 1, 0.01, 50);
+                    t.camera.position.set(0, 0, 0);
+                    t.camera.rotation.order = 'YXZ';
+                    t.camYaw = 0;
+                    t.camPitch = 0;
+
+                    t.uniforms = {
+                        uTex: { value: null },
+                        uHorizon: { value: t.horizonPct / 100.0 },
+                        uTexAspect: { value: 1.0 },
+                        uInvert: { value: t.invert ? 1.0 : 0.0 }
+                    };
+
+                    const sphereMaterial = new THREE.ShaderMaterial({
+                        uniforms: t.uniforms,
+                        side: THREE.BackSide,
+                        vertexShader: `
+                            varying vec3 vDir;
+                            void main() {
+                                vDir = normalize(position);
+                                gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+                            }
+                        `,
+                        fragmentShader: `
+                            precision highp float;
+                            uniform sampler2D uTex;
+                            uniform float uHorizon;
+                            uniform float uTexAspect;
+                            uniform float uInvert;
+                            varying vec3 vDir;
+                            const float PI = 3.1415926535897932384626433832795;
+                            void main() {
+                                vec3 d = normalize(vDir);
+                                float lon = atan(d.x, d.z);
+                                float lat = asin(clamp(d.y, -1.0, 1.0));
+
+                                // Invert swaps hemispheres (sky/ground) while keeping equator fixed
+                                if (uInvert > 0.5) lat = -lat;
+
+                                // Square mapping: edge=north pole, center=south pole, horizon circle=equator
+                                float re = clamp(uHorizon, 0.01, 0.99);
+                                float r;
+                                if (lat >= 0.0) {
+                                    r = re + (lat / (PI * 0.5)) * (1.0 - re);
+                                } else {
+                                    r = ((lat + PI * 0.5) / (PI * 0.5)) * re;
+                                }
+                                vec2 base = vec2(cos(lon), sin(lon)) * r;
+
+                                // aspect-correct sampling for rectangular textures (inscribed square)
+                                float sx = 1.0;
+                                float sy = 1.0;
+                                if (uTexAspect > 1.0) {
+                                    sx = 1.0 / uTexAspect;
+                                } else {
+                                    sy = uTexAspect;
+                                }
+                                vec2 uv = vec2(0.5 + base.x * 0.5 * sx, 0.5 + base.y * 0.5 * sy);
+                                if (uv.x < 0.0 || uv.x > 1.0 || uv.y < 0.0 || uv.y > 1.0) {
+                                    gl_FragColor = vec4(0.0, 0.0, 0.0, 1.0);
+                                    return;
+                                }
+                                vec3 col = texture2D(uTex, uv).rgb;
+                                gl_FragColor = vec4(col, 1.0);
+                            }
+                        `
+                    });
+
+                    t.sphere = new THREE.Mesh(new THREE.SphereGeometry(10, 96, 64), sphereMaterial);
+                    t.scene.add(t.sphere);
+
+                    const clampPitch = () => {
+                        t.camPitch = Math.max(-Math.PI * 0.49, Math.min(Math.PI * 0.49, t.camPitch));
+                    };
+                    const applyCamRot = () => {
+                        clampPitch();
+                        t.camera.rotation.set(t.camPitch, t.camYaw, 0);
+                    };
+                    applyCamRot();
+
+                    // Pointer look-around
+                    const onPointerDown = (e) => {
+                        t.isDragging = true;
+                        t.lastX = e.clientX;
+                        t.lastY = e.clientY;
+                        t.renderer.domElement.setPointerCapture && t.renderer.domElement.setPointerCapture(e.pointerId);
+                    };
+                    const onPointerMove = (e) => {
+                        if (!t.isDragging) return;
+                        const dx = e.clientX - t.lastX;
+                        const dy = e.clientY - t.lastY;
+                        t.lastX = e.clientX;
+                        t.lastY = e.clientY;
+                        t.camYaw -= dx * 0.003;
+                        t.camPitch -= dy * 0.003;
+                        applyCamRot();
+                        helpers.threeRenderOnce();
+                    };
+                    const onPointerUp = () => { t.isDragging = false; };
+                    t.renderer.domElement.addEventListener('pointerdown', onPointerDown);
+                    t.renderer.domElement.addEventListener('pointermove', onPointerMove);
+                    t.renderer.domElement.addEventListener('pointerup', onPointerUp);
+                    t.renderer.domElement.addEventListener('pointercancel', onPointerUp);
+                    t.renderer.domElement.addEventListener('pointerleave', onPointerUp);
+
+                    // Resize
+                    const resize = () => {
+                        const w = elements.threeContainer.clientWidth;
+                        const h = elements.threeContainer.clientHeight;
+                        t.renderer.setSize(w, h, false);
+                        t.camera.aspect = w / Math.max(1, h);
+                        t.camera.updateProjectionMatrix();
+                        helpers.threeRenderOnce();
+                    };
+                    t.onResize = resize;
+                    window.addEventListener('resize', resize);
+                    resize();
+
+                    // Load texture (data URL)
+                    const loader = new THREE.TextureLoader();
+                    loader.load(
+                        processedSrc,
+                        (tex) => {
+                            tex.colorSpace = THREE.SRGBColorSpace;
+                            tex.minFilter = THREE.LinearMipmapLinearFilter;
+                            tex.magFilter = THREE.LinearFilter;
+                            tex.wrapS = THREE.RepeatWrapping;
+                            tex.wrapT = THREE.ClampToEdgeWrapping;
+                            tex.anisotropy = Math.min(8, t.renderer.capabilities.getMaxAnisotropy());
+                            t.texture = tex;
+                            t.uniforms.uTex.value = tex;
+                            const iw = tex.image && tex.image.width ? tex.image.width : 0;
+                            const ih = tex.image && tex.image.height ? tex.image.height : 0;
+                            if (iw && ih) {
+                                t.texAspect = iw / ih;
+                                t.uniforms.uTexAspect.value = t.texAspect;
+                                t.texImage = tex.image;
+                            } else {
+                                t.texAspect = 1;
+                                t.uniforms.uTexAspect.value = 1;
+                                t.texImage = null;
+                            }
+                            helpers.drawLittlePlanetPreview();
+                            helpers.showLoading(false);
+                            helpers.threeRenderOnce();
+                        },
+                        undefined,
+                        () => {
+                            helpers.showLoading(false);
+                            alert('Error loading Little Planet texture.');
+                        }
+                    );
+
+                    // UI state
+                    elements.dropArea.classList.add('hidden');
+                    elements.controls.style.display = 'flex';
+                    elements.zoomInfo.style.display = 'none';
+                    elements.viewModeButtons.style.display = 'flex';
+                    helpers.updateViewModeButtons();
+                    elements.resetButton.style.display = 'block';
+                    elements.screenshotButton.style.display = 'block';
+                });
+            },
+
+            createImageView: (src) => {
+                // 0..2 => panorama; 3 => little planet
+                if (state.displayModeIndex === 3) {
+                    mediaHandlers.createLittlePlanetThreeSphere(src);
+                } else {
+                    mediaHandlers.createImagePanorama(src);
+                }
             },
 
             createVideoPanorama: (src) => {
@@ -667,7 +1196,7 @@ Copyright (c) 2025 Ben Egan
 
                 // Camera
                 const camera = document.createElement('a-entity');
-                camera.setAttribute('camera', 'fov: 80');
+                camera.setAttribute('camera', `fov: ${state.currentFov}`);
                 camera.setAttribute('look-controls', 'reverseMouseDrag: true');
                 camera.setAttribute('wasd-controls', 'enabled: false');
                 camera.setAttribute('position', '0 1.6 0');
@@ -681,7 +1210,7 @@ Copyright (c) 2025 Ben Egan
                 elements.controls.style.display = 'flex';
                 elements.videoControls.style.display = 'flex';
                 elements.zoomInfo.style.display = 'block';
-                elements.stereoButton.style.display = 'none'; // Hide stereo button for videos
+                elements.viewModeButtons.style.display = 'none'; // Hide view mode buttons for videos
                 elements.resetButton.style.display = 'block';
                 elements.screenshotButton.style.display = 'block';
                 state.isPlaying = true;
@@ -700,9 +1229,8 @@ Copyright (c) 2025 Ben Egan
             loadMediaFromUrl: (url, initialStereoMode = 0) => {
                 helpers.showLoading(true);
 
-                // Set the stereo mode before loading
-                state.stereoMode = initialStereoMode;
-                helpers.updateStereoButton();
+                // Set initial display mode (Little Planet not exposed via URL params yet)
+                helpers.setDisplayModeIndex(initialStereoMode);
 
                 // Determine if it's a video based on extension
                 const lowerUrl = url.toLowerCase();
@@ -712,7 +1240,7 @@ Copyright (c) 2025 Ben Egan
                     // Handle video (stereo mode not supported for videos in current implementation)
                     state.currentMedia = url;
                     state.isMediaImage = false;
-                    state.stereoMode = 0; // Reset stereo mode for videos
+                    helpers.setDisplayModeIndex(0); // Reset to default for videos
                     mediaHandlers.createVideoPanorama(url);
                 } else {
                     // Handle image with stereo support
@@ -721,7 +1249,7 @@ Copyright (c) 2025 Ben Egan
                     img.onload = () => {
                         state.currentMedia = url;
                         state.isMediaImage = true;
-                        mediaHandlers.createImagePanorama(url);
+                        mediaHandlers.createImageView(url);
                     };
                     img.onerror = () => {
                         helpers.showLoading(false);
@@ -735,13 +1263,15 @@ Copyright (c) 2025 Ben Egan
         /* ------------------ Interface handlers ------------------ */
         const interfaceHandlers = {
             takeScreenshot: () => {
-                if (!state.scene) return;
+                const hasThree = state.displayModeIndex === 3 && state.three && state.three.renderer;
+                if (!state.scene && !hasThree) return;
 
                 // Temporarily hide UI elements
                 const elementsToHide = [
                     elements.zoomInfo,
                     elements.controls,
-                    elements.stereoButton
+                    elements.viewModeButtons,
+                    elements.littlePlanetPanel
                 ];
 
                 // Store original display states
@@ -753,7 +1283,12 @@ Copyright (c) 2025 Ben Egan
                 // Let the render update (wait for next frame)
                 requestAnimationFrame(() => {
                     // Take screenshot of canvas
-                    const canvas = document.querySelector('canvas');
+                    let canvas = null;
+                    if (hasThree) {
+                        canvas = state.three.renderer.domElement;
+                    } else {
+                        canvas = elements.aframeContainer.querySelector('canvas');
+                    }
                     if (!canvas) {
                         // Restore UI and return
                         elementsToHide.forEach((el, i) => el.style.display = originalDisplays[i]);
@@ -793,6 +1328,7 @@ Copyright (c) 2025 Ben Egan
             },
 
             cleanupScene: () => {
+                helpers.disposeThree();
                 if (state.scene) {
                     elements.aframeContainer.removeChild(state.scene);
                     state.scene = null;
@@ -804,11 +1340,13 @@ Copyright (c) 2025 Ben Egan
                 elements.controls.style.display = 'none';
                 elements.videoControls.style.display = 'none';
                 elements.zoomInfo.style.display = 'none';
-                elements.stereoButton.style.display = 'none';
+                elements.viewModeButtons.style.display = 'none';
                 elements.resetButton.style.display = 'none';
                 elements.screenshotButton.style.display = 'none';
                 elements.dropArea.classList.remove('hidden');
                 elements.fileInput.value = '';
+                // NOTE: do not reset display mode here; this function is also used when switching modes.
+                // Reset is handled by the "Upload" button click handler.
             }
         };
 
@@ -907,20 +1445,39 @@ Copyright (c) 2025 Ben Egan
         elements.screenshotButton.addEventListener('click', interfaceHandlers.takeScreenshot);
 
         // Reset button
-        elements.resetButton.addEventListener('click', interfaceHandlers.cleanupScene);
+        elements.resetButton.addEventListener('click', () => {
+            interfaceHandlers.cleanupScene();
+            state.currentMedia = null;
+            state.isMediaImage = false;
+            helpers.setDisplayModeIndex(0);
+        });
 
-        // Stereo toggle
-        elements.stereoButton.addEventListener('click', () => {
-            if (!state.currentMedia) return;
+        // View mode buttons (images only)
+        const applyImageMode = (modeIndex) => {
+            if (!state.currentMedia || !state.isMediaImage) return;
+            if (state.displayModeIndex === 3 && modeIndex !== 3) helpers.disposeThree();
+            helpers.setDisplayModeIndex(modeIndex);
+            mediaHandlers.createImageView(state.currentMedia);
+        };
+        elements.modeMonoButton.addEventListener('click', () => applyImageMode(0));
+        elements.modeTbButton.addEventListener('click', () => applyImageMode(1));
+        elements.modeLrButton.addEventListener('click', () => applyImageMode(2));
+        elements.modeLittlePlanetButton.addEventListener('click', () => applyImageMode(3));
 
-            // Cycle through stereo modes: Off -> Vertical -> Horizontal -> Off
-            state.stereoMode = (state.stereoMode + 1) % 3;
-            helpers.updateStereoButton();
+        // Little Planet (three.js) panel controls
+        elements.lpHorizon.addEventListener('input', (e) => {
+            state.three.horizonPct = parseFloat(e.target.value);
+            helpers.updateLittlePlanetPanelValues();
+            if (state.three.uniforms) state.three.uniforms.uHorizon.value = state.three.horizonPct / 100.0;
+            helpers.drawLittlePlanetPreview();
+            helpers.threeRenderOnce();
+        });
 
-            // Reload the panorama with the new stereo mode
-            if (state.isMediaImage) {
-                mediaHandlers.createImagePanorama(state.currentMedia);
-            }
+        elements.lpInvert.addEventListener('change', () => {
+            state.three.invert = !!elements.lpInvert.checked;
+            helpers.updateLittlePlanetPanelValues();
+            if (state.three.uniforms) state.three.uniforms.uInvert.value = state.three.invert ? 1.0 : 0.0;
+            helpers.threeRenderOnce();
         });
 
         // Zoom handlers
@@ -954,6 +1511,9 @@ Copyright (c) 2025 Ben Egan
                 return false;
             }
         });
+
+        // Keep Little Planet plane fitted on resize
+        window.addEventListener('resize', helpers.updateLittlePlanetScale);
 
         // Check for URL parameter and load media if present
         const mediaParams = getMediaUrlFromParams();
